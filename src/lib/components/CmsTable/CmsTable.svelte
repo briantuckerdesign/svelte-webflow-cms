@@ -271,10 +271,13 @@
             {/if}
             {#each config.fields as field}
               {#if field.visible}
-                <Table.Head class="px-2 py-2" style={getCellStyle(field)}>
+                <Table.Head
+                  class="{field.editable ? 'px-2' : 'px-4'} py-2"
+                  style={getCellStyle(field)}
+                >
                   <div style="display: flex; align-items: center;">
                     {field.schema.name}
-                    {#if (field.schema.validations && field.schema.type === "PlainText") || field.schema.type === "RichText"}
+                    {#if (field.schema.displayValidations && field.schema.validations && field.schema.type === "PlainText") || field.schema.type === "RichText"}
                       <Tooltip.Root>
                         <Tooltip.Trigger
                           class="ml-2 {buttonVariants({

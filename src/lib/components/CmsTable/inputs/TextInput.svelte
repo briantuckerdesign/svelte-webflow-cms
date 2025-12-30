@@ -6,6 +6,7 @@
     placeholder?: string;
     maxlength?: number;
     disabled?: boolean;
+    displayValidations?: boolean;
     validations: {
       maxLength?: number;
       minLength?: number;
@@ -17,6 +18,7 @@
     placeholder,
     maxlength,
     disabled,
+    displayValidations,
     validations,
   }: Props = $props();
 </script>
@@ -29,7 +31,7 @@
     {maxlength}
     {disabled}
   />
-  {#if validations.maxLength}
+  {#if validations && validations.maxLength && displayValidations}
     <InputGroup.Addon
       align="inline-end"
       class="text-[0.65rem]"
