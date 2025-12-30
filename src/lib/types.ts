@@ -98,7 +98,7 @@ export interface UploadProvider {
   upload(
     file: Blob,
     filename: string,
-    contentType: string
+    contentType: string,
   ): Promise<UploadResult>;
 
   /**
@@ -114,7 +114,7 @@ export interface UploadProvider {
  */
 export type UploadProviderFactory = (
   request: Request,
-  platform?: any
+  platform?: any,
 ) => UploadProvider | null;
 
 /**
@@ -122,5 +122,5 @@ export type UploadProviderFactory = (
  */
 export type TokenGetter = (
   request: Request,
-  platform?: any
+  platform?: any,
 ) => string | null | Promise<string | null>;

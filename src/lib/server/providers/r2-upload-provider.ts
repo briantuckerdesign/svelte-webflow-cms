@@ -1,16 +1,16 @@
-import type { UploadProvider, UploadResult } from '../../types.js';
+import type { UploadProvider, UploadResult } from "../../types.js";
 
 /**
  * R2Bucket interface - matches Cloudflare Workers R2 API
  * Users on Cloudflare can use platform.env.BUCKET_NAME directly
  */
 interface R2Bucket {
-	put(
-		key: string,
-		value: ReadableStream | ArrayBuffer | ArrayBufferView | string | Blob,
-		options?: { httpMetadata?: { contentType?: string } }
-	): Promise<unknown>;
-	delete(key: string): Promise<void>;
+  put(
+    key: string,
+    value: ReadableStream | ArrayBuffer | ArrayBufferView | string | Blob,
+    options?: { httpMetadata?: { contentType?: string } },
+  ): Promise<unknown>;
+  delete(key: string): Promise<void>;
 }
 
 /**
@@ -31,24 +31,31 @@ interface R2Bucket {
  * @param bucket - R2 bucket instance from platform.env
  * @param publicUrlBase - Base URL for public access (e.g., 'https://cdn.example.com')
  */
-export function createR2UploadProvider(bucket: R2Bucket, publicUrlBase: string): UploadProvider {
-	// Ensure no trailing slash
-	const baseUrl = publicUrlBase.replace(/\/$/, '');
+export function createR2UploadProvider(
+  bucket: R2Bucket,
+  publicUrlBase: string,
+): UploadProvider {
+  // Ensure no trailing slash
+  const baseUrl = publicUrlBase.replace(/\/$/, "");
 
-	return {
-		async upload(file: Blob, filename: string, contentType: string): Promise<UploadResult> {
-			await bucket.put(filename, file, {
-				httpMetadata: { contentType }
-			});
+  return {
+    async upload(
+      file: Blob,
+      filename: string,
+      contentType: string,
+    ): Promise<UploadResult> {
+      await bucket.put(filename, file, {
+        httpMetadata: { contentType },
+      });
 
-			return {
-				url: `${baseUrl}/${filename}`,
-				filename
-			};
-		},
+      return {
+        url: `${baseUrl}/${filename}`,
+        filename,
+      };
+    },
 
-		async delete(filename: string): Promise<void> {
-			await bucket.delete(filename);
-		}
-	};
+    async delete(filename: string): Promise<void> {
+      await bucket.delete(filename);
+    },
+  };
 }

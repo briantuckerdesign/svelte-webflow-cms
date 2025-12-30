@@ -31,14 +31,14 @@ npm install svelte-webflow-cms
 
 ```typescript
 // src/routes/members/config.ts
-import type { TableConfig } from 'svelte-webflow-cms';
+import type { TableConfig } from "svelte-webflow-cms";
 
 export const config: TableConfig = {
-  pageTitle: 'Team Members',
-  itemSingular: 'Member',
-  itemPlural: 'Members',
-  siteId: 'your-site-id',
-  collectionId: 'your-collection-id',
+  pageTitle: "Team Members",
+  itemSingular: "Member",
+  itemPlural: "Members",
+  siteId: "your-site-id",
+  collectionId: "your-collection-id",
   createDeleteEnabled: true,
   draftEnabled: true,
   fields: [
@@ -46,23 +46,23 @@ export const config: TableConfig = {
       visible: true,
       editable: true,
       schema: {
-        name: 'Name',
-        slug: 'name',
-        type: 'PlainText',
-        validations: { maxLength: 100 }
-      }
+        name: "Name",
+        slug: "name",
+        type: "PlainText",
+        validations: { maxLength: 100 },
+      },
     },
     {
       visible: true,
       editable: true,
       schema: {
-        name: 'Photo',
-        slug: 'photo',
-        type: 'Image',
-        imageSettings: { width: 400, height: 400 }
-      }
-    }
-  ]
+        name: "Photo",
+        slug: "photo",
+        type: "Image",
+        imageSettings: { width: 400, height: 400 },
+      },
+    },
+  ],
 };
 ```
 
@@ -70,13 +70,13 @@ export const config: TableConfig = {
 
 ```typescript
 // src/routes/members/+page.server.ts
-import { createCmsActions, loadCmsItems } from 'svelte-webflow-cms/server';
-import { createR2UploadProvider } from 'svelte-webflow-cms/providers/r2';
-import { config } from './config';
+import { createCmsActions, loadCmsItems } from "svelte-webflow-cms/server";
+import { createR2UploadProvider } from "svelte-webflow-cms/providers/r2";
+import { config } from "./config";
 
 export async function load({ platform }) {
   const token = platform?.env?.WEBFLOW_TOKEN;
-  if (!token) return { items: [], error: 'Token not found' };
+  if (!token) return { items: [], error: "Token not found" };
 
   const { items, error } = await loadCmsItems(token, config);
   return { items, error };
@@ -86,9 +86,12 @@ export const actions = createCmsActions(config, {
   getToken: (_, platform) => platform?.env?.WEBFLOW_TOKEN ?? null,
   getUploadProvider: (_, platform) =>
     platform?.env?.TEMP_IMAGES
-      ? createR2UploadProvider(platform.env.TEMP_IMAGES, 'https://cdn.example.com')
+      ? createR2UploadProvider(
+          platform.env.TEMP_IMAGES,
+          "https://cdn.example.com",
+        )
       : null,
-  bucketPrefix: 'members'
+  bucketPrefix: "members",
 });
 ```
 
@@ -112,7 +115,11 @@ The library supports pluggable storage backends. Implement the `UploadProvider` 
 
 ```typescript
 interface UploadProvider {
-  upload(file: Blob, filename: string, contentType: string): Promise<{ url: string; filename: string }>;
+  upload(
+    file: Blob,
+    filename: string,
+    contentType: string,
+  ): Promise<{ url: string; filename: string }>;
   delete(filename: string): Promise<void>;
 }
 ```
@@ -120,29 +127,37 @@ interface UploadProvider {
 ### Built-in: Cloudflare R2
 
 ```typescript
-import { createR2UploadProvider } from 'svelte-webflow-cms/providers/r2';
+import { createR2UploadProvider } from "svelte-webflow-cms/providers/r2";
 
 getUploadProvider: (_, platform) =>
-  createR2UploadProvider(platform.env.BUCKET, 'https://cdn.example.com')
+  createR2UploadProvider(platform.env.BUCKET, "https://cdn.example.com");
 ```
 
 ### Custom Provider Example (S3)
 
 ```typescript
-export function createS3UploadProvider(client, bucket, baseUrl): UploadProvider {
+export function createS3UploadProvider(
+  client,
+  bucket,
+  baseUrl,
+): UploadProvider {
   return {
     async upload(file, filename, contentType) {
-      await client.send(new PutObjectCommand({
-        Bucket: bucket,
-        Key: filename,
-        Body: Buffer.from(await file.arrayBuffer()),
-        ContentType: contentType
-      }));
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: filename,
+          Body: Buffer.from(await file.arrayBuffer()),
+          ContentType: contentType,
+        }),
+      );
       return { url: `${baseUrl}/${filename}`, filename };
     },
     async delete(filename) {
-      await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: filename }));
-    }
+      await client.send(
+        new DeleteObjectCommand({ Bucket: bucket, Key: filename }),
+      );
+    },
   };
 }
 ```
@@ -153,14 +168,14 @@ The `getToken` function receives the request and platform at runtime:
 
 ```typescript
 // Cloudflare Pages
-getToken: (_, platform) => platform?.env?.WEBFLOW_TOKEN ?? null
+getToken: (_, platform) => platform?.env?.WEBFLOW_TOKEN ?? null;
 
 // Node.js
-getToken: () => process.env.WEBFLOW_TOKEN ?? null
+getToken: () => process.env.WEBFLOW_TOKEN ?? null;
 
 // SvelteKit $env
-import { env } from '$env/dynamic/private';
-getToken: () => env.WEBFLOW_TOKEN ?? null
+import { env } from "$env/dynamic/private";
+getToken: () => env.WEBFLOW_TOKEN ?? null;
 ```
 
 ## Supported Field Types

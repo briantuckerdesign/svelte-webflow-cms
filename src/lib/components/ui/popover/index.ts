@@ -3,11 +3,11 @@ import Trigger from "./popover-trigger.svelte";
 import Content from "./popover-content.svelte";
 
 export {
-	Root,
-	Trigger,
-	Content,
-	//
-	Root as Popover,
-	Trigger as PopoverTrigger,
-	Content as PopoverContent,
+  Root,
+  Trigger,
+  Content,
+  //
+  Root as Popover,
+  Trigger as PopoverTrigger,
+  Content as PopoverContent,
 };
