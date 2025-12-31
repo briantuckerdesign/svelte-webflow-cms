@@ -10,6 +10,7 @@ A config-driven CMS table editor for managing Webflow collections with SvelteKit
 - **Drag & Drop Sorting**: Reorder items with automatic sort field updates
 - **Image Handling**: Client-side compression/cropping with pluggable storage backends
 - **Hosting Agnostic**: Works with any hosting platform (Cloudflare, Vercel, Netlify, etc.)
+- **Field Validation**: Required fields, length constraints, and numeric ranges with error feedback
 
 ## Installation
 
@@ -36,7 +37,7 @@ Add a `@source` directive in your CSS file:
 
 ```css
 @import "tailwindcss";
-@source "svelte-webflow-cms";
+@source "../node_modules/svelte-webflow-cms";
 ```
 
 ## Quick Start
@@ -59,6 +60,7 @@ export const config: TableConfig = {
     {
       visible: true,
       editable: true,
+      required: true,
       schema: {
         name: "Name",
         slug: "name",
@@ -194,20 +196,61 @@ getToken: () => env.WEBFLOW_TOKEN ?? null;
 
 ## Supported Field Types
 
-| Type             | Input Component     | Notes                         |
-| ---------------- | ------------------- | ----------------------------- |
-| `PlainText`      | TextInput           | Supports maxLength validation |
-| `RichText`       | TextInput           | Supports maxLength validation |
-| `Link`           | LinkInput           | URL input                     |
-| `Email`          | EmailInput          | Email input                   |
-| `Phone`          | PhoneInput          | Phone input                   |
-| `Number`         | NumberInput         | Numeric input                 |
-| `Switch`         | SwitchInput         | Boolean toggle                |
-| `Option`         | OptionInput         | Dropdown select               |
-| `Color`          | ColorInput          | Color picker                  |
-| `Image`          | ImageInput          | Image upload with processing  |
-| `Reference`      | ReferenceInput      | Single collection reference   |
-| `MultiReference` | MultiReferenceInput | Multiple collection refs      |
+| Type             | Input Component     | Notes                                   |
+| ---------------- | ------------------- | --------------------------------------- |
+| `PlainText`      | TextInput           | Supports maxLength/minLength validation |
+| `RichText`       | TextInput           | Supports maxLength/minLength validation |
+| `Link`           | LinkInput           | URL input                               |
+| `Email`          | EmailInput          | Email input                             |
+| `Phone`          | PhoneInput          | Phone input                             |
+| `Number`         | NumberInput         | Numeric input with range validation     |
+| `Switch`         | SwitchInput         | Boolean toggle                          |
+| `Option`         | OptionInput         | Dropdown select                         |
+| `Color`          | ColorInput          | Color picker                            |
+| `DateTime`       | DateInput           | Calendar picker with date selection     |
+| `Image`          | ImageInput          | Image upload with processing            |
+| `Reference`      | ReferenceInput      | Single collection reference             |
+| `MultiReference` | MultiReferenceInput | Multiple collection refs                |
+
+## Field Configuration Options
+
+### Field
+
+```typescript
+interface Field {
+  visible: boolean; // Show in table
+  editable?: boolean; // Allow editing
+  required?: boolean; // Field is required
+  styles?: FieldStyles; // Custom styling
+  schema: FieldSchema; // Field schema
+}
+```
+
+### Field Validations
+
+```typescript
+interface Validations {
+  minLength?: number; // Minimum string length
+  maxLength?: number; // Maximum string length
+  min?: number; // Minimum numeric value
+  max?: number; // Maximum numeric value
+}
+```
+
+### Sort Field
+
+Sort fields now support `DateTime` type in addition to `Number`:
+
+```typescript
+interface SortField extends Field {
+  direction?: "asc" | "desc"; // Sort direction
+  schema: SortFieldSchema;
+}
+
+interface SortFieldSchema extends FieldSchema {
+  type: "Number" | "DateTime"; // Number or DateTime
+}
+```
 
 ## API Reference
 
@@ -216,7 +259,7 @@ getToken: () => env.WEBFLOW_TOKEN ?? null;
 - `CmsTable` - Main table component
 - `CmsRow` - Row renderer
 - `CmsCell` - Cell renderer
-- `CreateItemModal` - Modal for creating new items
+- `DateInput` - Calendar date picker component
 
 ### Server Functions
 
