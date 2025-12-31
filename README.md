@@ -23,7 +23,21 @@ npm install svelte-webflow-cms
 
 - SvelteKit 2.x
 - Svelte 5.x
-- Tailwind CSS (components use Tailwind classes)
+- Tailwind CSS v4
+- bits-ui ^2.0.0
+
+## Tailwind CSS Configuration
+
+This library uses Tailwind CSS classes for styling. You must configure Tailwind to scan this package's files so the necessary CSS is generated.
+
+### Tailwind v4
+
+Add a `@source` directive in your CSS file:
+
+```css
+@import "tailwindcss";
+@source "svelte-webflow-cms";
+```
 
 ## Quick Start
 
@@ -88,7 +102,7 @@ export const actions = createCmsActions(config, {
     platform?.env?.TEMP_IMAGES
       ? createR2UploadProvider(
           platform.env.TEMP_IMAGES,
-          "https://cdn.example.com",
+          "https://cdn.example.com"
         )
       : null,
   bucketPrefix: "members",
@@ -118,7 +132,7 @@ interface UploadProvider {
   upload(
     file: Blob,
     filename: string,
-    contentType: string,
+    contentType: string
   ): Promise<{ url: string; filename: string }>;
   delete(filename: string): Promise<void>;
 }
@@ -139,7 +153,7 @@ getUploadProvider: (_, platform) =>
 export function createS3UploadProvider(
   client,
   bucket,
-  baseUrl,
+  baseUrl
 ): UploadProvider {
   return {
     async upload(file, filename, contentType) {
@@ -149,13 +163,13 @@ export function createS3UploadProvider(
           Key: filename,
           Body: Buffer.from(await file.arrayBuffer()),
           ContentType: contentType,
-        }),
+        })
       );
       return { url: `${baseUrl}/${filename}`, filename };
     },
     async delete(filename) {
       await client.send(
-        new DeleteObjectCommand({ Bucket: bucket, Key: filename }),
+        new DeleteObjectCommand({ Bucket: bucket, Key: filename })
       );
     },
   };
