@@ -38,7 +38,7 @@ interface SaveAllPayload {
  */
 export function createSaveAllAction(
   config: TableConfig,
-  getToken: TokenGetter,
+  getToken: TokenGetter
 ) {
   return async ({ request, platform }: { request: Request; platform: any }) => {
     const token = await getToken(request, platform);
@@ -85,16 +85,14 @@ export function createSaveAllAction(
           const response = await client.collections.items.updateItemLive(
             config.collectionId,
             item.id,
-            updateData,
+            updateData
           );
-          console.log("updateItemLive", response);
         } else {
           const response = await client.collections.items.updateItem(
             config.collectionId,
             item.id,
-            updateData,
+            updateData
           );
-          console.log("updateItem", response);
         }
 
         // Publish if transitioning from draft to live
@@ -103,9 +101,8 @@ export function createSaveAllAction(
             config.collectionId,
             {
               itemIds: [item.id],
-            },
+            }
           );
-          console.log("publishItem", response);
         }
       }
 
@@ -138,24 +135,20 @@ export function createSaveAllAction(
           const newItem = item.isDraft
             ? await client.collections.items.createItem(
                 config.collectionId,
-                itemData as any,
+                itemData as any
               )
             : await client.collections.items.createItemLive(
                 config.collectionId,
-                itemData as any,
+                itemData as any
               );
-
-          console.log("createItem", newItem);
 
           if (!item.isDraft) {
             const response = await client.collections.items.publishItem(
               config.collectionId,
               {
                 itemIds: [newItem.id as string],
-              },
+              }
             );
-
-            console.log("publishItem", response);
           }
         } catch (err) {
           const errorMessage = err instanceof Error ? err.message : "";
@@ -171,24 +164,20 @@ export function createSaveAllAction(
             const newItem = item.isDraft
               ? await client.collections.items.createItem(
                   config.collectionId,
-                  itemData as any,
+                  itemData as any
                 )
               : await client.collections.items.createItemLive(
                   config.collectionId,
-                  itemData as any,
+                  itemData as any
                 );
-
-            console.log("createItem", newItem);
 
             if (!item.isDraft) {
               const response = await client.collections.items.publishItem(
                 config.collectionId,
                 {
                   itemIds: [newItem.id as string],
-                },
+                }
               );
-
-              console.log("publishItem", response);
             }
           } else {
             throw err;
@@ -201,15 +190,13 @@ export function createSaveAllAction(
         if (wasLive) {
           const response = await client.collections.items.deleteItemLive(
             config.collectionId,
-            id,
+            id
           );
-          console.log("deleteItemLive", response);
         }
         const response = await client.collections.items.deleteItem(
           config.collectionId,
-          id,
+          id
         );
-        console.log("deleteItem", response);
       }
 
       return { success: true };
@@ -228,7 +215,7 @@ export function createSaveAllAction(
  */
 export function createUploadPhotoAction(
   getProvider: UploadProviderFactory,
-  bucketPrefix: string = "cms-item",
+  bucketPrefix: string = "cms-item"
 ) {
   return async ({ request, platform }: { request: Request; platform: any }) => {
     const provider = getProvider(request, platform);
@@ -323,7 +310,7 @@ interface CmsActionsOptions {
  */
 export function createCmsActions(
   config: TableConfig,
-  options: CmsActionsOptions,
+  options: CmsActionsOptions
 ) {
   const { getToken, getUploadProvider, bucketPrefix = "cms-item" } = options;
 
