@@ -12,6 +12,7 @@
   import ColorInput from "./inputs/ColorInput.svelte";
   import ReferenceInput from "./inputs/ReferenceInput.svelte";
   import MultiReferenceInput from "./inputs/MultiReferenceInput.svelte";
+  import DateInput from "./inputs/DateInput.svelte";
 
   interface Props {
     field: Field;
@@ -183,6 +184,17 @@
     {onTempFile}
     disabled={!editable}
   />
+{:else if schema.type === "DateTime"}
+  {#if editable}
+    <DateInput bind:value={displayValue} />
+  {:else}
+    {@const dateStr = displayValue
+      ? new Date(displayValue).toLocaleDateString("en-US", {
+          dateStyle: "medium",
+        })
+      : "-"}
+    <span class="text-sm">{dateStr}</span>
+  {/if}
 {:else}
   <div class="text-sm text-gray-500 italic">Unsupported: {schema.type}</div>
 {/if}

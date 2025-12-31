@@ -2,18 +2,17 @@
   import { enhance } from "$app/forms";
   import { Button, buttonVariants } from "$lib/components/ui/button";
   import * as Table from "$lib/components/ui/table";
+  import * as Tooltip from "$lib/components/ui/tooltip";
   import type { Field, TableConfig } from "$lib/types.js";
-  import { InfoIcon, Plus } from "@lucide/svelte";
+  import { bytesToMb } from "$lib/utils";
+  import { CircleAlert, InfoIcon, Plus } from "@lucide/svelte";
   import { untrack } from "svelte";
   import { dndzone, type DndEvent } from "svelte-dnd-action";
   import { flip } from "svelte/animate";
-  import SaveChanges from "./save-changes.svelte";
   import CmsRow from "./CmsRow.svelte";
   import TableTitle from "./TableTitle.svelte";
-  import CreateItemModal from "./CreateItemModal.svelte";
   import { fieldStyleDefaults } from "./field-style-defaults";
-  import * as Tooltip from "$lib/components/ui/tooltip";
-  import { bytesToMb } from "$lib/utils";
+  import SaveChanges from "./save-changes.svelte";
 
   interface Props {
     config: TableConfig;
@@ -50,6 +49,100 @@
   let pendingDeletes = $state<{ id: string; wasLive: boolean }[]>([]);
   let tempFiles = $state<Map<string, string>>(new Map());
   let isSaving = $state(false);
+  let validationErrors = $state<string[]>([]);
+
+  // Validation
+  interface ValidationError {
+    itemId: string;
+    fieldName: string;
+    message: string;
+  }
+
+  function validateItems(): ValidationError[] {
+    const errors: ValidationError[] = [];
+    const allItems = [...items, ...pendingCreates];
+
+    for (const item of allItems) {
+      for (const field of config.fields) {
+        if (!field.visible || !field.editable) continue;
+
+        const value = item.fieldData?.[field.schema.slug];
+        const fieldName = field.schema.name;
+
+        // Check required
+        if (field.required) {
+          const isEmpty =
+            value === undefined ||
+            value === null ||
+            value === "" ||
+            (Array.isArray(value) && value.length === 0);
+
+          if (isEmpty) {
+            errors.push({
+              itemId: item.id,
+              fieldName,
+              message: `${fieldName} is required`,
+            });
+            continue; // Skip other validations if empty
+          }
+        }
+
+        // Skip validation checks if value is empty and not required
+        if (value === undefined || value === null || value === "") continue;
+
+        const validations = field.schema.validations;
+        if (!validations) continue;
+
+        // Check maxLength (for text fields)
+        if (validations.maxLength && typeof value === "string") {
+          if (value.length > validations.maxLength) {
+            errors.push({
+              itemId: item.id,
+              fieldName,
+              message: `${fieldName} exceeds max length of ${validations.maxLength}`,
+            });
+          }
+        }
+
+        // Check minLength (for text fields)
+        if (validations.minLength && typeof value === "string") {
+          if (value.length < validations.minLength) {
+            errors.push({
+              itemId: item.id,
+              fieldName,
+              message: `${fieldName} must be at least ${validations.minLength} characters`,
+            });
+          }
+        }
+
+        // Check number range
+        if (typeof value === "number") {
+          if (
+            validations.minimum !== undefined &&
+            value < validations.minimum
+          ) {
+            errors.push({
+              itemId: item.id,
+              fieldName,
+              message: `${fieldName} must be at least ${validations.minimum}`,
+            });
+          }
+          if (
+            validations.maximum !== undefined &&
+            value > validations.maximum
+          ) {
+            errors.push({
+              itemId: item.id,
+              fieldName,
+              message: `${fieldName} must be at most ${validations.maximum}`,
+            });
+          }
+        }
+      }
+    }
+
+    return errors;
+  }
 
   // Sync items when data changes (e.g. navigation)
   $effect(() => {
@@ -57,6 +150,7 @@
     originalItems = deepClone(data);
     pendingCreates = [];
     pendingDeletes = [];
+    validationErrors = [];
     cleanupTempFiles();
   });
 
@@ -68,8 +162,8 @@
 
   function handleDndFinalize(e: CustomEvent<DndEvent<any>>) {
     items = e.detail.items;
-    // Update sort field values to reflect new order
-    if (config.sortField) {
+    // Update sort field values to reflect new order (only for Number sort fields)
+    if (config.sortField?.schema.type === "Number") {
       const sortSlug = config.sortField.schema.slug;
       items = items.map((item, index) => ({
         ...item,
@@ -152,6 +246,7 @@
     items = deepClone(originalItems);
     pendingCreates = [];
     pendingDeletes = [];
+    validationErrors = [];
     cleanupTempFiles();
   }
 
@@ -195,11 +290,46 @@
   // Items to display (excluding deleted)
   let displayItems = $derived([...items, ...pendingCreates]);
 
-  // Modal state
-  let showCreateModal = $state(false);
+  // Drag-and-drop is only enabled for Number sort fields (not DateTime)
+  let isDragEnabled = $derived(config.sortField?.schema.type === "Number");
 
-  // Handle new item from modal
-  function handleCreateItem(newItem: any) {
+  // Create a new empty item and add to pending creates
+  function handleAddItem() {
+    const fieldData: Record<string, any> = {};
+    // Initialize with defaults
+    for (const field of config.fields) {
+      if (field.schema.defaultValue !== undefined) {
+        fieldData[field.schema.slug] = field.schema.defaultValue;
+      } else if (field.schema.type === "Switch") {
+        fieldData[field.schema.slug] = false;
+      } else if (field.schema.type === "Number") {
+        fieldData[field.schema.slug] = 0;
+      } else if (field.schema.type === "MultiReference") {
+        fieldData[field.schema.slug] = [];
+      } else {
+        fieldData[field.schema.slug] = "";
+      }
+    }
+
+    // Set sort field to place new item at the end (only for Number sort fields)
+    if (config.sortField?.schema.type === "Number") {
+      const sortSlug = config.sortField.schema.slug;
+      const allItems = [...items, ...pendingCreates];
+      const maxSort = allItems.reduce((max, item) => {
+        const val = item.fieldData?.[sortSlug] ?? 0;
+        return Math.max(max, typeof val === "number" ? val : 0);
+      }, 0);
+      fieldData[sortSlug] = maxSort + 1;
+    }
+
+    const newItem = {
+      id: `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      fieldData,
+      isDraft: config.draftEnabled, // If drafts disabled, create as live
+      isArchived: config.draftEnabled,
+      _isNew: true,
+    };
+
     pendingCreates = [...pendingCreates, newItem];
   }
 
@@ -228,7 +358,7 @@
       <div class="flex justify-end gap-4">
         {#if config.createDeleteEnabled}
           <div class="text-sm">
-            <Button variant="outline" onclick={() => (showCreateModal = true)}>
+            <Button variant="outline" onclick={handleAddItem}>
               <Plus class="h-4 w-4" />
               Add {config.itemSingular}
             </Button>
@@ -242,11 +372,26 @@
               cancel();
               return;
             }
+
+            // Validate before saving
+            const errors = validateItems();
+            if (errors.length > 0) {
+              validationErrors = errors.map((e) => e.message);
+              cancel();
+              return;
+            }
+            validationErrors = [];
+
             isSaving = true;
             return async ({ result, update }) => {
               isSaving = false;
               if (result.type === "success") {
                 handleSaveComplete();
+              } else if (result.type === "failure") {
+                const errorMsg =
+                  (result.data as { error?: string })?.error ||
+                  "An error occurred while saving";
+                validationErrors = [errorMsg];
               }
               await update();
             };
@@ -259,6 +404,21 @@
           />
           <SaveChanges {hasChanges} {isSaving} {handleCancel} />
         </form>
+        {#if validationErrors.length > 0}
+          <div
+            class="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+          >
+            <CircleAlert class="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p class="font-medium">Please fix the following errors:</p>
+              <ul class="mt-1 list-inside list-disc">
+                {#each validationErrors as error}
+                  <li>{error}</li>
+                {/each}
+              </ul>
+            </div>
+          </div>
+        {/if}
       </div>
     </div>
 
@@ -266,8 +426,10 @@
       <Table.Root>
         <Table.Header>
           <Table.Row class="hover:bg-transparent">
-            {#if config.sortField}
+            {#if isDragEnabled}
               <Table.Head class="w-10 px-2 py-2"></Table.Head>
+            {:else}
+              <Table.Head class="w-1 p-0"></Table.Head>
             {/if}
             {#each config.fields as field}
               {#if field.visible}
@@ -316,7 +478,7 @@
           use:dndzone={{
             items,
             flipDurationMs,
-            dragDisabled: !config.sortField,
+            dragDisabled: !isDragEnabled,
           }}
           onconsider={handleDndConsider}
           onfinalize={handleDndFinalize}
@@ -331,6 +493,7 @@
                 bind:item={items[i]}
                 {config}
                 {referenceData}
+                {isDragEnabled}
                 onDelete={handleDeleteItem}
                 onTempFile={trackTempFile}
               />
@@ -345,6 +508,7 @@
                 bind:item={pendingCreates[i]}
                 {config}
                 {referenceData}
+                {isDragEnabled}
                 onDelete={() => {
                   pendingCreates = pendingCreates.filter((_, idx) => idx !== i);
                 }}
@@ -356,14 +520,4 @@
       </Table.Root>
     </div>
   </div>
-
-  <!-- Create Item Modal -->
-  {#if config.createDeleteEnabled}
-    <CreateItemModal
-      {config}
-      bind:open={showCreateModal}
-      onOpenChange={(open) => (showCreateModal = open)}
-      onSubmit={handleCreateItem}
-    />
-  {/if}
 </Tooltip.Provider>

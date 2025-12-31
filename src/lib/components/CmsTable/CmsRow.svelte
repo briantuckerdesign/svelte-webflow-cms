@@ -15,6 +15,7 @@
     referenceData?: Record<string, any[]>;
     onDelete?: (item: any) => void;
     onTempFile?: (itemId: string, filename: string) => void;
+    isDragEnabled?: boolean;
   }
 
   let {
@@ -23,6 +24,7 @@
     referenceData = {},
     onDelete,
     onTempFile,
+    isDragEnabled = false,
   }: Props = $props();
 
   let isLive = $derived(!item.isDraft);
@@ -32,13 +34,15 @@
   let itemName = $derived(item.fieldData?.name || item.fieldData?.title || "");
 </script>
 
-<!-- Drag Handle if sort enabled -->
-{#if config.sortField}
+<!-- Drag Handle if drag sorting enabled (Number sort field only) -->
+{#if isDragEnabled}
   <Table.Cell
     class="w-10 cursor-grab px-4 py-3 text-gray-400 active:cursor-grabbing"
   >
     <GripVertical size={16} />
   </Table.Cell>
+{:else}
+  <Table.Cell class="w-1 p-0"></Table.Cell>
 {/if}
 
 <!-- Fields -->
@@ -69,15 +73,17 @@
   <div></div>
   <div class="flex items-center justify-end gap-2">
     <!-- Live Status Toggle -->
-    <div class="mr-2 flex items-center">
-      <Label class="mr-4">Live</Label>
-      <Switch
-        checked={isLive}
-        onCheckedChange={(checked) => {
-          item.isDraft = !checked;
-        }}
-      />
-    </div>
+    {#if config.draftEnabled}
+      <div class="mr-2 flex items-center">
+        <Label class="mr-4">Live</Label>
+        <Switch
+          checked={isLive}
+          onCheckedChange={(checked) => {
+            item.isDraft = !checked;
+          }}
+        />
+      </div>
+    {/if}
 
     <!-- Delete Button (if enabled) -->
     {#if config.createDeleteEnabled && onDelete}

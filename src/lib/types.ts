@@ -28,6 +28,8 @@ export interface Field {
   visible: boolean;
   /** Allow user to edit field? */
   editable?: boolean;
+  /** Required */
+  required?: boolean;
   /** Styles for field */
   styles?: FieldStyles;
   /** Schema of field */
@@ -52,12 +54,13 @@ export interface FieldSchema {
 }
 
 export interface SortField extends Field {
+  direction?: "asc" | "desc";
   schema: SortFieldSchema;
 }
 
 export interface SortFieldSchema extends FieldSchema {
   /** Sort field must be a number */
-  type: "Number";
+  type: "Number" | "DateTime";
 }
 
 export interface ImageSettings {
@@ -98,7 +101,7 @@ export interface UploadProvider {
   upload(
     file: Blob,
     filename: string,
-    contentType: string,
+    contentType: string
   ): Promise<UploadResult>;
 
   /**
@@ -114,7 +117,7 @@ export interface UploadProvider {
  */
 export type UploadProviderFactory = (
   request: Request,
-  platform?: any,
+  platform?: any
 ) => UploadProvider | null;
 
 /**
@@ -122,5 +125,5 @@ export type UploadProviderFactory = (
  */
 export type TokenGetter = (
   request: Request,
-  platform?: any,
+  platform?: any
 ) => string | null | Promise<string | null>;
