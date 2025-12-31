@@ -304,6 +304,8 @@
         fieldData[field.schema.slug] = false;
       } else if (field.schema.type === "Number") {
         fieldData[field.schema.slug] = 0;
+      } else if (field.schema.type === "MultiReference") {
+        fieldData[field.schema.slug] = [];
       } else {
         fieldData[field.schema.slug] = "";
       }
