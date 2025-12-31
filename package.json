@@ -1,6 +1,6 @@
 {
   "name": "svelte-webflow-cms",
-  "version": "0.0.2",
+  "version": "0.0.20",
   "description": "A config-driven CMS table editor for managing Webflow collections with SvelteKit",
   "type": "module",
   "svelte": "./dist/index.js",
