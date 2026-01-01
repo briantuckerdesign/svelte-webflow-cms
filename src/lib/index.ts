@@ -1,10 +1,17 @@
-// Components
-export { default as CmsTable } from "./components/CmsTable/CmsTable.svelte";
-export { default as CmsRow } from "./components/CmsTable/CmsRow.svelte";
-export { default as CmsCell } from "./components/CmsTable/CmsCell.svelte";
-export { default as CreateItemModal } from "./components/CmsTable/CreateItemModal.svelte";
-export { default as TableTitle } from "./components/CmsTable/TableTitle.svelte";
-export { default as SaveChanges } from "./components/CmsTable/save-changes.svelte";
+// CmsTable - Composable components (shadcn-style)
+import * as CmsTableComponents from "./components/CmsTable/index.js";
+export const CmsTable = CmsTableComponents;
+
+// Context utilities
+export { getCmsTableContext } from "./components/CmsTable/context.js";
+export type {
+  CmsTableState,
+  ValidationError,
+} from "./components/CmsTable/context.js";
+
+// Utility components
+export { default as TableTitle } from "./components/CmsTable/cms-table-title.svelte";
+export { default as SaveChanges } from "./components/CmsTable/cms-table-save.svelte";
 
 // Input components
 export { default as TextInput } from "./components/CmsTable/inputs/TextInput.svelte";

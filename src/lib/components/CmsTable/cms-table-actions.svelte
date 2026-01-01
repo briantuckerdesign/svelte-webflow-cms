@@ -3,77 +3,62 @@
   import { Button } from "$lib/components/ui/button";
   import { Switch } from "$lib/components/ui/switch";
   import * as Table from "$lib/components/ui/table";
-  import type { TableConfig } from "$lib/types.js";
-  import { GripVertical, Trash2 } from "@lucide/svelte";
-  import { Label } from "../ui/label";
-  import CmsCell from "./CmsCell.svelte";
-  import { fieldStyleDefaults } from "./field-style-defaults";
+  import { Label } from "$lib/components/ui/label";
+  import { cn } from "$lib/utils.js";
+  import { Trash2 } from "@lucide/svelte";
+  import type { Snippet } from "svelte";
+  import { getCmsTableContext } from "./context.js";
 
   interface Props {
-    item: any; // CollectionItem
-    config: TableConfig;
-    referenceData?: Record<string, any[]>;
-    onDelete?: (item: any) => void;
-    onTempFile?: (itemId: string, filename: string) => void;
-    isDragEnabled?: boolean;
+    /** The item this actions cell is for */
+    item: any;
+    /** Handler for delete action */
+    onDelete?: () => void;
+    /** Custom content to render before default actions */
+    beforeActions?: Snippet;
+    /** Custom content to render after default actions */
+    afterActions?: Snippet;
+    /** Whether to show the live toggle (defaults to config.draftEnabled) */
+    showLiveToggle?: boolean;
+    /** Whether to show the delete button (defaults to config.createDeleteEnabled) */
+    showDelete?: boolean;
+    /** Additional CSS classes */
+    class?: string;
   }
 
   let {
     item = $bindable(),
-    config,
-    referenceData = {},
     onDelete,
-    onTempFile,
-    isDragEnabled = false,
+    beforeActions,
+    afterActions,
+    showLiveToggle,
+    showDelete,
+    class: className,
   }: Props = $props();
+
+  const ctx = getCmsTableContext();
+  const config = $derived(ctx.config);
 
   let isLive = $derived(!item.isDraft);
   let deleteDialogOpen = $state(false);
 
-  // Get item name for image alt text (try 'name' field first, then 'title')
-  let itemName = $derived(item.fieldData?.name || item.fieldData?.title || "");
+  let shouldShowLiveToggle = $derived(showLiveToggle ?? config.draftEnabled);
+  let shouldShowDelete = $derived(
+    showDelete ?? (config.createDeleteEnabled && !!onDelete)
+  );
 </script>
 
-<!-- Drag Handle if drag sorting enabled (Number sort field only) -->
-{#if isDragEnabled}
-  <Table.Cell
-    class="w-10 cursor-grab px-4 py-3 text-gray-400 active:cursor-grabbing"
-  >
-    <GripVertical size={16} />
-  </Table.Cell>
-{:else}
-  <Table.Cell class="w-1 p-0"></Table.Cell>
-{/if}
-
-<!-- Fields -->
-{#each config.fields as field}
-  {#if field.visible}
-    <Table.Cell
-      class="py-3 align-middle {field.editable ? 'px-1' : 'px-4'}"
-      style="text-align: {field.styles?.align ??
-        fieldStyleDefaults[field.schema.type].align}; "
-    >
-      <CmsCell
-        {field}
-        bind:value={item.fieldData[field.schema.slug]}
-        itemId={item.id}
-        {itemName}
-        {referenceData}
-        {onTempFile}
-      />
-    </Table.Cell>
-  {/if}
-{/each}
-
-<!-- Actions -->
 <Table.Cell
-  class="sticky right-0 px-8 py-3 text-right"
+  class={cn("sticky right-0 px-8 py-3 text-right", className)}
   style="height:100%; background: linear-gradient(90deg, transparent 0%, white 20%); padding-left: 3rem;"
 >
-  <div></div>
   <div class="flex items-center justify-end gap-2">
+    {#if beforeActions}
+      {@render beforeActions()}
+    {/if}
+
     <!-- Live Status Toggle -->
-    {#if config.draftEnabled}
+    {#if shouldShowLiveToggle}
       <div class="mr-2 flex items-center">
         <Label class="mr-4">Live</Label>
         <Switch
@@ -85,8 +70,8 @@
       </div>
     {/if}
 
-    <!-- Delete Button (if enabled) -->
-    {#if config.createDeleteEnabled && onDelete}
+    <!-- Delete Button -->
+    {#if shouldShowDelete}
       <AlertDialog.Root bind:open={deleteDialogOpen}>
         <AlertDialog.Trigger>
           {#snippet child({ props })}
@@ -114,7 +99,7 @@
             <Button
               variant="destructive"
               onclick={() => {
-                onDelete(item);
+                onDelete?.();
                 deleteDialogOpen = false;
               }}
             >
@@ -123,6 +108,10 @@
           </AlertDialog.Footer>
         </AlertDialog.Content>
       </AlertDialog.Root>
+    {/if}
+
+    {#if afterActions}
+      {@render afterActions()}
     {/if}
   </div>
 </Table.Cell>

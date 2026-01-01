@@ -122,7 +122,130 @@ export const actions = createCmsActions(config, {
   let { data } = $props();
 </script>
 
-<CmsTable {config} data={data.items} />
+<CmsTable.Root {config} data={data.items}>
+  <CmsTable.Toolbar />
+  <CmsTable.SaveBar />
+  <CmsTable.Table>
+    <CmsTable.Header />
+    <CmsTable.Body />
+  </CmsTable.Table>
+</CmsTable.Root>
+```
+
+## Composable API
+
+The CmsTable components follow a composable pattern (similar to shadcn-svelte), allowing you to customize and extend the table easily.
+
+### Basic Usage
+
+```svelte
+<script>
+  import { CmsTable } from 'svelte-webflow-cms';
+</script>
+
+<CmsTable.Root {config} data={data.items} referenceData={data.referenceData}>
+  <CmsTable.Toolbar />
+  <CmsTable.SaveBar />
+  <CmsTable.Table>
+    <CmsTable.Header />
+    <CmsTable.Body />
+  </CmsTable.Table>
+</CmsTable.Root>
+```
+
+### Available Components
+
+| Component          | Description                                    |
+| ------------------ | ---------------------------------------------- |
+| `CmsTable.Root`    | Root wrapper - provides context and state      |
+| `CmsTable.Toolbar` | Title and add button                           |
+| `CmsTable.SaveBar` | Save/cancel controls with validation display   |
+| `CmsTable.Table`   | Table container                                |
+| `CmsTable.Header`  | Table header row with field names              |
+| `CmsTable.Body`    | Table body with drag-and-drop support          |
+| `CmsTable.Row`     | Individual row (used in custom row templates)  |
+| `CmsTable.Actions` | Actions column (live toggle and delete button) |
+| `CmsTable.Cell`    | Field cell with input (used in custom rows)    |
+
+### Customization Examples
+
+#### Custom Toolbar with Badge
+
+```svelte
+<CmsTable.Root {config} data={data.items}>
+  <CmsTable.Toolbar>
+    {#snippet afterTitle()}
+      <Badge variant="secondary">{data.items.length} items</Badge>
+    {/snippet}
+  </CmsTable.Toolbar>
+  <CmsTable.SaveBar />
+  <CmsTable.Table>
+    <CmsTable.Header />
+    <CmsTable.Body />
+  </CmsTable.Table>
+</CmsTable.Root>
+```
+
+#### Custom Actions Placement
+
+```svelte
+<CmsTable.Root {config} data={data.items}>
+  <div class="flex items-center justify-between">
+    <CmsTable.Toolbar showAddButton={false} />
+    <div class="flex gap-2">
+      <Button onclick={handleExport}>Export</Button>
+      <CmsTable.SaveBar />
+    </div>
+  </div>
+  <CmsTable.Table>
+    <CmsTable.Header />
+    <CmsTable.Body />
+  </CmsTable.Table>
+</CmsTable.Root>
+```
+
+#### Custom Column in Header
+
+```svelte
+<CmsTable.Table>
+  <CmsTable.Header>
+    {#snippet afterColumns()}
+      <Table.Head>Custom Column</Table.Head>
+    {/snippet}
+  </CmsTable.Header>
+  <CmsTable.Body />
+</CmsTable.Table>
+```
+
+#### Custom Row Template
+
+```svelte
+<CmsTable.Body>
+  {#snippet row({ item, index, isNew })}
+    <CmsTable.Row {item} {index} {isNew}>
+      {#snippet afterColumns()}
+        <Table.Cell>
+          <Badge>{item.status}</Badge>
+        </Table.Cell>
+      {/snippet}
+    </CmsTable.Row>
+  {/snippet}
+</CmsTable.Body>
+```
+
+#### Styling with Classes
+
+All components accept a `class` prop for custom styling:
+
+```svelte
+<CmsTable.Root {config} data={data.items} class="max-w-7xl mx-auto">
+  <CmsTable.Toolbar class="bg-gray-50 p-4 rounded-t-lg" />
+  <CmsTable.SaveBar class="justify-start px-4" />
+  <CmsTable.Table class="border-2 shadow-lg">
+    <CmsTable.Header class="bg-blue-50" />
+    <CmsTable.Body class="text-sm" />
+  </CmsTable.Table>
+</CmsTable.Root>
 ```
 
 ## Upload Providers
@@ -256,10 +379,32 @@ interface SortFieldSchema extends FieldSchema {
 
 ### Components
 
-- `CmsTable` - Main table component
-- `CmsRow` - Row renderer
-- `CmsCell` - Cell renderer
-- `DateInput` - Calendar date picker component
+**CmsTable Components:**
+
+- `CmsTable.Root` - Root wrapper that provides context and state management
+- `CmsTable.Toolbar` - Title and add button with customizable slots
+- `CmsTable.SaveBar` - Save/cancel controls with validation error display
+- `CmsTable.Table` - Table container with styling
+- `CmsTable.Header` - Table header row with field names and tooltips
+- `CmsTable.Body` - Table body with drag-and-drop support
+- `CmsTable.Row` - Individual row component (for custom row templates)
+- `CmsTable.Actions` - Actions column with live toggle and delete button
+- `CmsTable.Cell` - Field cell with appropriate input component
+
+**Input Components** (can be used independently):
+
+- `TextInput` - Plain text and rich text input
+- `NumberInput` - Numeric input with validation
+- `LinkInput` - URL input
+- `EmailInput` - Email input
+- `PhoneInput` - Phone input
+- `ColorInput` - Color picker
+- `SwitchInput` - Boolean toggle
+- `OptionInput` - Dropdown select
+- `DateInput` - Calendar date picker
+- `ImageInput` - Image upload with compression
+- `ReferenceInput` - Single collection reference selector
+- `MultiReferenceInput` - Multiple collection reference selector
 
 ### Server Functions
 
