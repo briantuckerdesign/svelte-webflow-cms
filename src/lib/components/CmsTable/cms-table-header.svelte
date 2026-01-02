@@ -24,13 +24,14 @@
     beforeColumns,
     afterColumns,
     showDragHandle,
-    showActions = true,
+    showActions,
     class: className,
   }: Props = $props();
 
   const ctx = getCmsTableContext();
   const config = $derived(ctx.config);
   const isDragEnabled = $derived(showDragHandle ?? ctx.isDragEnabled);
+  const shouldShowActions = $derived(showActions ?? ctx.hasActionsColumn);
 </script>
 
 <Table.Header class={className}>
@@ -50,7 +51,7 @@
     {#each config.fields as field}
       {#if field.visible}
         <Table.Head
-          class="{field.editable ? 'px-2' : 'px-4'} py-2"
+          class="{field.editable ? 'px-2' : 'px-1'} py-2"
           style={ctx.getCellStyle(field)}
         >
           <div style="display: flex; align-items: center;">
@@ -88,7 +89,7 @@
     {/if}
 
     <!-- Actions column -->
-    {#if showActions}
+    {#if shouldShowActions}
       <Table.Head
         class="sticky right-0 px-8"
         style="padding-left: 3rem; background: linear-gradient(90deg, transparent 0%, white 20%);"

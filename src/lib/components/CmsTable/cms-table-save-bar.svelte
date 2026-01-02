@@ -34,7 +34,7 @@
   const ctx = getCmsTableContext();
 </script>
 
-<div class={cn("flex items-start gap-4", className)}>
+<div class={cn("flex items-center gap-4", className)}>
   {#if beforeSave}
     {@render beforeSave()}
   {/if}
@@ -91,7 +91,7 @@
         disabled={!ctx.hasChanges() || ctx.isSaving}
       >
         <Save class="h-4 w-4" />
-        {ctx.isSaving ? "Saving..." : "Save Changes"}
+        {ctx.isSaving ? "Saving..." : "Save"}
       </Button>
     </ButtonGroup>
   </form>

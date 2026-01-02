@@ -326,6 +326,9 @@
   // Derived values
   let displayItems = $derived([...items, ...pendingCreates]);
   let isDragEnabled = $derived(config.sortField?.schema.type === "Number");
+  let hasActionsColumn = $derived(
+    config.draftEnabled || config.createDeleteEnabled
+  );
 
   // Create context state - using getters to make it reactive
   const contextState: CmsTableState = {
@@ -361,6 +364,9 @@
     },
     get isDragEnabled() {
       return isDragEnabled;
+    },
+    get hasActionsColumn() {
+      return hasActionsColumn;
     },
     hasChanges,
     getPayload,

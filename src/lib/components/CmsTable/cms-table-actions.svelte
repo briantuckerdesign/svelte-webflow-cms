@@ -49,8 +49,8 @@
 </script>
 
 <Table.Cell
-  class={cn("sticky right-0 px-8 py-3 text-right", className)}
-  style="height:100%; background: linear-gradient(90deg, transparent 0%, white 20%); padding-left: 3rem;"
+  class={cn("sticky right-0 px-1 py-1 text-right md:px-8 md:py-3", className)}
+  style="height:100%; background: linear-gradient(90deg, transparent 0%, white 5%); padding-left:10px;"
 >
   <div class="flex items-center justify-end gap-2">
     {#if beforeActions}
@@ -59,8 +59,8 @@
 
     <!-- Live Status Toggle -->
     {#if shouldShowLiveToggle}
-      <div class="mr-2 flex items-center">
-        <Label class="mr-4">Live</Label>
+      <div class="flex flex-col gap-1 items-center md:flex-row md:mr-2">
+        <Label>Live</Label>
         <Switch
           checked={isLive}
           onCheckedChange={(checked) => {

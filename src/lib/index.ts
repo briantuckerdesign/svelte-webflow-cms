@@ -9,10 +9,6 @@ export type {
   ValidationError,
 } from "./components/CmsTable/context.js";
 
-// Utility components
-export { default as TableTitle } from "./components/CmsTable/cms-table-title.svelte";
-export { default as SaveChanges } from "./components/CmsTable/cms-table-save.svelte";
-
 // Input components
 export { default as TextInput } from "./components/CmsTable/inputs/TextInput.svelte";
 export { default as NumberInput } from "./components/CmsTable/inputs/NumberInput.svelte";

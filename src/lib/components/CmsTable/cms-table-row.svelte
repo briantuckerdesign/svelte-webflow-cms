@@ -33,13 +33,14 @@
     beforeColumns,
     afterColumns,
     actions,
-    showActions = true,
+    showActions,
     class: className,
   }: Props = $props();
 
   const ctx = getCmsTableContext();
   const config = $derived(ctx.config);
   const isDragEnabled = $derived(ctx.isDragEnabled);
+  const shouldShowActions = $derived(showActions ?? ctx.hasActionsColumn);
 
   // Get item name for image alt text
   let itemName = $derived(item.fieldData?.name || item.fieldData?.title || "");
@@ -60,7 +61,7 @@
 <!-- Drag Handle -->
 {#if isDragEnabled}
   <Table.Cell
-    class="w-10 cursor-grab px-4 py-3 text-gray-400 active:cursor-grabbing"
+    class="w-10 cursor-grab px-1 py-1 text-gray-400 active:cursor-grabbing md:px-4 md:py-3"
   >
     <GripVertical size={16} />
   </Table.Cell>
@@ -76,7 +77,7 @@
 {#each config.fields as field}
   {#if field.visible}
     <Table.Cell
-      class="py-3 align-middle {field.editable ? 'px-1' : 'px-4'}"
+      class="py-3 align-middle px-1"
       style="text-align: {field.styles?.align ??
         fieldStyleDefaults[field.schema.type].align};"
     >
@@ -97,11 +98,11 @@
 {/if}
 
 <!-- Actions -->
-{#if showActions}
+{#if shouldShowActions}
   {#if actions}
     <Table.Cell
-      class="sticky right-0 px-8 py-3 text-right"
-      style="height:100%; background: linear-gradient(90deg, transparent 0%, white 20%); padding-left: 3rem;"
+      class="sticky right-0 px-1 py-1 text-right md:px-8 md:py-3"
+      style="height:100%; background: linear-gradient(90deg, transparent 0%, white 20%); padding-left: 1rem;"
     >
       {@render actions({ item })}
     </Table.Cell>

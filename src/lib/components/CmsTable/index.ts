@@ -1,6 +1,8 @@
 import Root from "./cms-table-root.svelte";
 import Table from "./cms-table.svelte";
 import Toolbar from "./cms-table-toolbar.svelte";
+import Title from "./cms-table-title.svelte";
+import AddItem from "./cms-table-add-item.svelte";
 import SaveBar from "./cms-table-save-bar.svelte";
 import Header from "./cms-table-header.svelte";
 import Body from "./cms-table-body.svelte";
@@ -15,14 +17,12 @@ export type { CmsTableState, ValidationError } from "./context.js";
 // Re-export field style defaults
 export { fieldStyleDefaults } from "./field-style-defaults.js";
 
-// Re-export utility components
-export { default as TableTitle } from "./cms-table-title.svelte";
-export { default as SaveChanges } from "./cms-table-save.svelte";
-
 export {
   Root,
   Table,
   Toolbar,
+  Title,
+  AddItem,
   SaveBar,
   Header,
   Body,
@@ -33,6 +33,8 @@ export {
   Root as CmsTableRoot,
   Table as CmsTable,
   Toolbar as CmsTableToolbar,
+  Title as CmsTableTitle,
+  AddItem as CmsTableAddItem,
   SaveBar as CmsTableSaveBar,
   Header as CmsTableHeader,
   Body as CmsTableBody,

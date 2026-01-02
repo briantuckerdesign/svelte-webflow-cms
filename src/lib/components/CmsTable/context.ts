@@ -26,6 +26,7 @@ export interface CmsTableState {
   // Derived
   displayItems: any[];
   isDragEnabled: boolean;
+  hasActionsColumn: boolean;
 
   // Handlers
   hasChanges: () => boolean;

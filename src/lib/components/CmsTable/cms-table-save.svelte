@@ -27,6 +27,6 @@
     disabled={!hasChanges() || isSaving}
   >
     <Save class="h-4 w-4" />
-    {isSaving ? "Saving..." : "Save Changes"}
+    {isSaving ? "Saving..." : "Save"}
   </Button>
 </ButtonGroup>
