@@ -56,7 +56,43 @@
       }
       ctx.setValidationErrors([]);
 
+      // If there are pending file uploads, we need to handle them first
+      if (ctx.pendingFileUploads.length > 0) {
+        cancel();
+
+        // Handle file uploads async, then resubmit
+        (async () => {
+          ctx.setIsSaving(true);
+          try {
+            await ctx.uploadPendingFiles();
+            // Now resubmit the form with the updated payload
+            const form = document.querySelector(
+              `form[action="${action}"]`
+            ) as HTMLFormElement;
+            if (form) {
+              // Update the hidden input with the new payload
+              const payloadInput = form.querySelector(
+                'input[name="payload"]'
+              ) as HTMLInputElement;
+              if (payloadInput) {
+                payloadInput.value = JSON.stringify(ctx.getPayload());
+              }
+              // Use requestSubmit to trigger enhance again (but now without pending files)
+              form.requestSubmit();
+            }
+          } catch (err) {
+            ctx.setIsSaving(false);
+            const errorMsg =
+              err instanceof Error ? err.message : "Failed to upload files";
+            ctx.setValidationErrors([errorMsg]);
+          }
+        })();
+
+        return;
+      }
+
       ctx.setIsSaving(true);
+
       return async ({ result, update }) => {
         ctx.setIsSaving(false);
         if (result.type === "success") {

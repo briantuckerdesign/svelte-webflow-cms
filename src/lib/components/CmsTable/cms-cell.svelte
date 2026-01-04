@@ -2,6 +2,7 @@
   import type { Field } from "$lib/types.js";
   import { untrack } from "svelte";
   import ImageInput from "./inputs/ImageInput.svelte";
+  import FileInput from "./inputs/FileInput.svelte";
   import LinkInput from "./inputs/LinkInput.svelte";
   import NumberInput from "./inputs/NumberInput.svelte";
   import OptionInput from "./inputs/OptionInput.svelte";
@@ -182,6 +183,15 @@
     {itemName}
     imageSettings={field.schema.imageSettings}
     {onTempFile}
+    disabled={!editable}
+  />
+{:else if schema.type === "File"}
+  <FileInput
+    bind:value
+    {itemId}
+    fieldSlug={schema.slug}
+    {itemName}
+    fileSettings={field.schema.fileSettings}
     disabled={!editable}
   />
 {:else if schema.type === "DateTime"}

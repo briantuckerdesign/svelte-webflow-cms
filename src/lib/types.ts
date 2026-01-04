@@ -53,6 +53,8 @@ export interface FieldSchema {
   defaultValue?: any;
   /** Image settings */
   imageSettings?: ImageSettings;
+  /** File settings */
+  fileSettings?: FileSettings;
 }
 
 export interface SortField extends Field {
@@ -69,6 +71,59 @@ export interface ImageSettings {
   width: number;
   height: number;
 }
+
+export interface FileSettings {
+  /** Maximum file size in bytes */
+  maxSizeBytes: number;
+}
+
+/** Allowed file types for file uploads */
+export const ALLOWED_FILE_TYPES = [
+  // Images
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/gif",
+  "image/bmp",
+  "image/svg+xml",
+  "image/webp",
+  // Documents
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+  "text/csv",
+  "application/vnd.oasis.opendocument.text",
+  "application/vnd.oasis.opendocument.spreadsheet",
+  "application/vnd.oasis.opendocument.presentation",
+] as const;
+
+/** Allowed file extensions for file uploads */
+export const ALLOWED_FILE_EXTENSIONS = [
+  ".png",
+  ".jpeg",
+  ".jpg",
+  ".gif",
+  ".bmp",
+  ".svg",
+  ".webp",
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+  ".txt",
+  ".csv",
+  ".odt",
+  ".ods",
+  ".odp",
+] as const;
 
 export interface FieldStyles {
   /** Min-width in px */

@@ -1,5 +1,6 @@
 import { fail } from "@sveltejs/kit";
 import type { TableConfig, TokenGetter } from "../types.js";
+import { ALLOWED_FILE_TYPES, ALLOWED_FILE_EXTENSIONS } from "../types.js";
 import { createWebflowClient } from "./webflow.js";
 import { createWebflowUploadProvider } from "./webflow-upload-provider.js";
 
@@ -269,9 +270,96 @@ export function createDeletePhotoAction() {
   };
 }
 
+/**
+ * Creates uploadFile action for file uploads directly to Webflow
+ * Validates file type and size before uploading
+ * @param config - Table configuration (provides siteId and assetFolderId)
+ * @param getToken - Function to retrieve the Webflow API token
+ * @param maxSizeBytes - Maximum file size in bytes (default: 10MB)
+ */
+export function createUploadFileAction(
+  config: TableConfig,
+  getToken: TokenGetter,
+  maxSizeBytes: number = 10 * 1024 * 1024
+) {
+  return async ({ request, platform }: { request: Request; platform: any }) => {
+    const token = await getToken(request, platform);
+    if (!token) return fail(500, { error: "WEBFLOW_TOKEN not configured" });
+
+    const provider = createWebflowUploadProvider({
+      token,
+      siteId: config.siteId,
+      folderId: config.assetFolderId,
+    });
+
+    const formData = await request.formData();
+    const fileBlob = formData.get("file") as Blob;
+    const itemName = formData.get("itemName") as string;
+    const originalFilename = formData.get("originalFilename") as string;
+
+    if (!fileBlob) return fail(400, { error: "No file provided" });
+
+    // Validate file size
+    if (fileBlob.size > maxSizeBytes) {
+      const maxSizeMB = (maxSizeBytes / (1024 * 1024)).toFixed(1);
+      return fail(400, {
+        error: `File is too large. Maximum size: ${maxSizeMB}MB`,
+      });
+    }
+
+    // Validate file type
+    const fileType = fileBlob.type;
+    const fileExtension = originalFilename
+      ? `.${originalFilename.split(".").pop()?.toLowerCase()}`
+      : "";
+
+    const isValidMime = ALLOWED_FILE_TYPES.includes(
+      fileType as (typeof ALLOWED_FILE_TYPES)[number]
+    );
+    const isValidExtension = ALLOWED_FILE_EXTENSIONS.includes(
+      fileExtension as (typeof ALLOWED_FILE_EXTENSIONS)[number]
+    );
+
+    if (!isValidMime && !isValidExtension) {
+      return fail(400, {
+        error: `File type not allowed. Allowed types: ${ALLOWED_FILE_EXTENSIONS.join(", ")}`,
+      });
+    }
+
+    try {
+      // Preserve original extension
+      const extension =
+        originalFilename?.split(".").pop()?.toLowerCase() || "bin";
+      const filename = `${config.itemSingular.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`;
+
+      // Upload directly to Webflow
+      const result = await provider.upload(
+        fileBlob,
+        filename,
+        fileType || "application/octet-stream"
+      );
+
+      return {
+        success: true,
+        file: {
+          url: result.url,
+          alt: originalFilename || itemName || "File",
+          filename: result.filename,
+        },
+      };
+    } catch (err) {
+      return fail(500, {
+        error: `Failed to upload file: ${err instanceof Error ? err.message : "Unknown error"}`,
+      });
+    }
+  };
+}
+
 interface CmsActionsOptions {
   /** Function to retrieve the Webflow API token */
   getToken: TokenGetter;
+  /** Maximum file size in bytes for file uploads (default: 10MB) */
+  maxFileSizeBytes?: number;
 }
 
 /**
@@ -293,11 +381,12 @@ export function createCmsActions(
   config: TableConfig,
   options: CmsActionsOptions
 ) {
-  const { getToken } = options;
+  const { getToken, maxFileSizeBytes } = options;
 
   return {
     saveAll: createSaveAllAction(config, getToken),
     uploadPhoto: createUploadPhotoAction(config, getToken),
+    uploadFile: createUploadFileAction(config, getToken, maxFileSizeBytes),
     deletePhoto: createDeletePhotoAction(),
   };
 }

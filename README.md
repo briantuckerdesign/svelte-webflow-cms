@@ -8,7 +8,7 @@ A config-driven CMS table editor for managing Webflow collections with SvelteKit
 - **Change Tracking**: Tracks all modifications and only enables save when changes exist
 - **Batched Operations**: Nothing is sent to Webflow until explicit "Save changes" click
 - **Drag & Drop Sorting**: Reorder items with automatic sort field updates
-- **Direct Webflow Upload**: Images upload directly to Webflow assets (no intermediate storage needed)
+- **Direct Webflow Upload**: Images and files upload directly to Webflow assets (no intermediate storage needed)
 - **Hosting Agnostic**: Works with any hosting platform (Cloudflare, Vercel, Netlify, etc.)
 - **Field Validation**: Required fields, length constraints, and numeric ranges with error feedback
 
@@ -77,6 +77,16 @@ export const config: TableConfig = {
         slug: "photo",
         type: "Image",
         imageSettings: { width: 400, height: 400 },
+      },
+    },
+    {
+      visible: true,
+      editable: true,
+      schema: {
+        name: "Resume",
+        slug: "resume",
+        type: "File",
+        fileSettings: { maxSizeBytes: 10 * 1024 * 1024 }, // 10MB max
       },
     },
   ],
@@ -240,15 +250,58 @@ All components accept a `class` prop for custom styling:
 </CmsTable.Root>
 ```
 
-## Image Uploads
+## Image & File Uploads
 
-Images are uploaded directly to Webflow's asset storage using their Assets API. No intermediate storage (R2, S3, etc.) is required.
+Images and files are uploaded directly to Webflow's asset storage using their Assets API. No intermediate storage (R2, S3, etc.) is required.
 
 ### How it works
 
-1. Client-side: Images are compressed and cropped based on `imageSettings`
-2. Server-side: The image is hashed and uploaded directly to Webflow's S3
+1. **Images**: Client-side compression and cropping based on `imageSettings`, then uploaded to Webflow
+2. **Files**: Validated for type and size, then uploaded to Webflow on save
 3. The returned Webflow asset URL is used in the CMS item
+
+### Image Configuration
+
+```typescript
+{
+  schema: {
+    name: "Photo",
+    slug: "photo",
+    type: "Image",
+    imageSettings: {
+      width: 400,   // Target width in pixels
+      height: 400,  // Target height in pixels
+    },
+  },
+}
+```
+
+### File Configuration
+
+```typescript
+{
+  schema: {
+    name: "Document",
+    slug: "document",
+    type: "File",
+    fileSettings: {
+      maxSizeBytes: 10 * 1024 * 1024,  // 10MB max file size
+    },
+  },
+}
+```
+
+### Allowed File Types
+
+The following file types are supported for file uploads:
+
+| Category      | Extensions                         |
+| ------------- | ---------------------------------- |
+| Images        | PNG, JPEG/JPG, GIF, BMP, SVG, WebP |
+| Documents     | PDF, DOC/DOCX, TXT                 |
+| Spreadsheets  | XLS/XLSX, CSV, ODS                 |
+| Presentations | PPT/PPTX, ODP                      |
+| Other         | ODT                                |
 
 ### Configuration
 
@@ -296,6 +349,7 @@ getToken: () => env.WEBFLOW_TOKEN ?? null;
 | `Color`          | ColorInput          | Color picker                            |
 | `DateTime`       | DateInput           | Calendar picker with date selection     |
 | `Image`          | ImageInput          | Image upload with processing            |
+| `File`           | FileInput           | File upload with type/size validation   |
 | `Reference`      | ReferenceInput      | Single collection reference             |
 | `MultiReference` | MultiReferenceInput | Multiple collection refs                |
 
@@ -367,6 +421,7 @@ interface SortFieldSchema extends FieldSchema {
 - `OptionInput` - Dropdown select
 - `DateInput` - Calendar date picker
 - `ImageInput` - Image upload with compression
+- `FileInput` - File upload with type/size validation
 - `ReferenceInput` - Single collection reference selector
 - `MultiReferenceInput` - Multiple collection reference selector
 
@@ -381,6 +436,8 @@ interface SortFieldSchema extends FieldSchema {
 
 - `TableConfig` - Table configuration
 - `Field` - Field configuration
+- `ImageSettings` - Image upload settings (width, height)
+- `FileSettings` - File upload settings (maxSizeBytes)
 - `TokenGetter` - Token retrieval function type
 
 ## License

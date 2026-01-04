@@ -8,6 +8,7 @@
     setCmsTableContext,
     type CmsTableState,
     type ValidationError,
+    type PendingFileUpload,
   } from "./context.js";
   import { fieldStyleDefaults } from "./field-style-defaults.js";
 
@@ -51,6 +52,7 @@
   let pendingCreates = $state<any[]>([]);
   let pendingDeletes = $state<{ id: string; wasLive: boolean }[]>([]);
   let tempFiles = $state<Map<string, string>>(new Map());
+  let pendingFileUploads = $state<PendingFileUpload[]>([]);
   let isSaving = $state(false);
   let validationErrors = $state<string[]>([]);
 
@@ -142,12 +144,16 @@
 
   // Sync items when data changes
   $effect(() => {
-    items = deepClone(data);
-    originalItems = deepClone(data);
-    pendingCreates = [];
-    pendingDeletes = [];
-    validationErrors = [];
-    cleanupTempFiles();
+    const newData = data;
+    untrack(() => {
+      items = deepClone(newData);
+      originalItems = deepClone(newData);
+      pendingCreates = [];
+      pendingDeletes = [];
+      validationErrors = [];
+      cleanupPendingFileUploads();
+      cleanupTempFiles();
+    });
   });
 
   const flipDurationMs = 300;
@@ -232,6 +238,7 @@
     pendingCreates = [];
     pendingDeletes = [];
     validationErrors = [];
+    cleanupPendingFileUploads();
     cleanupTempFiles();
   }
 
@@ -240,6 +247,7 @@
     pendingCreates = [];
     pendingDeletes = [];
     tempFiles.clear();
+    pendingFileUploads = [];
   }
 
   function handleDeleteItem(item: any) {
@@ -266,6 +274,121 @@
 
   function trackTempFile(itemId: string, filename: string) {
     tempFiles.set(itemId, filename);
+  }
+
+  function trackPendingFileUpload(upload: PendingFileUpload) {
+    // Remove any existing upload for this field
+    pendingFileUploads = pendingFileUploads.filter(
+      (u) => !(u.itemId === upload.itemId && u.fieldSlug === upload.fieldSlug)
+    );
+    pendingFileUploads = [...pendingFileUploads, upload];
+  }
+
+  function removePendingFileUpload(itemId: string, fieldSlug: string) {
+    const upload = pendingFileUploads.find(
+      (u) => u.itemId === itemId && u.fieldSlug === fieldSlug
+    );
+    if (upload) {
+      URL.revokeObjectURL(upload.blobUrl);
+    }
+    pendingFileUploads = pendingFileUploads.filter(
+      (u) => !(u.itemId === itemId && u.fieldSlug === fieldSlug)
+    );
+  }
+
+  function cleanupPendingFileUploads() {
+    for (const upload of pendingFileUploads) {
+      URL.revokeObjectURL(upload.blobUrl);
+    }
+    pendingFileUploads = [];
+  }
+
+  async function uploadPendingFiles(): Promise<void> {
+    for (const upload of pendingFileUploads) {
+      const formData = new FormData();
+      formData.append("file", upload.file);
+      formData.append("itemName", upload.originalFilename);
+      formData.append("originalFilename", upload.originalFilename);
+
+      const response = await fetch("?/uploadFile", {
+        method: "POST",
+        body: formData,
+      });
+
+      const text = await response.text();
+      // Parse the SvelteKit action response using deserialize
+      const { deserialize } = await import("$app/forms");
+      const result = deserialize(text);
+
+      // SvelteKit success responses have type "success" and data contains the returned object
+      if (result.type === "success") {
+        const data = result.data as {
+          success?: boolean;
+          file?: {
+            url: string;
+            alt: string;
+            filename: string;
+          };
+        };
+
+        if (data?.file) {
+          // Success - update the item's field value with the real URL
+          const fileData = data.file;
+
+          // Update items array (need to reassign to trigger reactivity)
+          items = items.map((item) => {
+            if (item.id === upload.itemId && item.fieldData) {
+              return {
+                ...item,
+                fieldData: {
+                  ...item.fieldData,
+                  [upload.fieldSlug]: {
+                    url: fileData.url,
+                    alt: fileData.alt,
+                  },
+                },
+              };
+            }
+            return item;
+          });
+
+          // Update pendingCreates array
+          pendingCreates = pendingCreates.map((item) => {
+            if (item.id === upload.itemId && item.fieldData) {
+              return {
+                ...item,
+                fieldData: {
+                  ...item.fieldData,
+                  [upload.fieldSlug]: {
+                    url: fileData.url,
+                    alt: fileData.alt,
+                  },
+                },
+              };
+            }
+            return item;
+          });
+
+          // Revoke the blob URL
+          URL.revokeObjectURL(upload.blobUrl);
+        } else {
+          throw new Error(
+            `Failed to upload ${upload.originalFilename}: No file data in response`
+          );
+        }
+      } else if (result.type === "failure") {
+        const errorMsg =
+          (result.data as { error?: string })?.error || "Failed to upload file";
+        throw new Error(
+          `Failed to upload ${upload.originalFilename}: ${errorMsg}`
+        );
+      } else {
+        throw new Error(
+          `Failed to upload ${upload.originalFilename}: Unexpected response type ${result.type}`
+        );
+      }
+    }
+    pendingFileUploads = [];
   }
 
   function handleAddItem() {
@@ -353,6 +476,9 @@
     get tempFiles() {
       return tempFiles;
     },
+    get pendingFileUploads() {
+      return pendingFileUploads;
+    },
     get isSaving() {
       return isSaving;
     },
@@ -375,6 +501,9 @@
     handleDeleteItem,
     handleAddItem,
     trackTempFile,
+    trackPendingFileUpload,
+    removePendingFileUpload,
+    uploadPendingFiles,
     validateItems,
     setValidationErrors,
     setIsSaving,

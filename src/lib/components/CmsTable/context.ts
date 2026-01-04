@@ -9,6 +9,14 @@ export interface ValidationError {
   message: string;
 }
 
+export interface PendingFileUpload {
+  itemId: string;
+  fieldSlug: string;
+  file: File;
+  blobUrl: string;
+  originalFilename: string;
+}
+
 export interface CmsTableState {
   // Config
   config: TableConfig;
@@ -20,6 +28,7 @@ export interface CmsTableState {
   pendingCreates: any[];
   pendingDeletes: { id: string; wasLive: boolean }[];
   tempFiles: Map<string, string>;
+  pendingFileUploads: PendingFileUpload[];
   isSaving: boolean;
   validationErrors: string[];
 
@@ -40,6 +49,9 @@ export interface CmsTableState {
   handleDeleteItem: (item: any) => void;
   handleAddItem: () => void;
   trackTempFile: (itemId: string, filename: string) => void;
+  trackPendingFileUpload: (upload: PendingFileUpload) => void;
+  removePendingFileUpload: (itemId: string, fieldSlug: string) => void;
+  uploadPendingFiles: () => Promise<void>;
   validateItems: () => ValidationError[];
   setValidationErrors: (errors: string[]) => void;
   setIsSaving: (saving: boolean) => void;
