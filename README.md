@@ -8,7 +8,7 @@ A config-driven CMS table editor for managing Webflow collections with SvelteKit
 - **Change Tracking**: Tracks all modifications and only enables save when changes exist
 - **Batched Operations**: Nothing is sent to Webflow until explicit "Save changes" click
 - **Drag & Drop Sorting**: Reorder items with automatic sort field updates
-- **Image Handling**: Client-side compression/cropping with pluggable storage backends
+- **Direct Webflow Upload**: Images upload directly to Webflow assets (no intermediate storage needed)
 - **Hosting Agnostic**: Works with any hosting platform (Cloudflare, Vercel, Netlify, etc.)
 - **Field Validation**: Required fields, length constraints, and numeric ranges with error feedback
 
@@ -54,6 +54,7 @@ export const config: TableConfig = {
   itemPlural: "Members",
   siteId: "your-site-id",
   collectionId: "your-collection-id",
+  assetFolderId: "optional-folder-id", // Optional: organize uploads in a Webflow folder
   createDeleteEnabled: true,
   draftEnabled: true,
   fields: [
@@ -87,7 +88,6 @@ export const config: TableConfig = {
 ```typescript
 // src/routes/members/+page.server.ts
 import { createCmsActions, loadCmsItems } from "svelte-webflow-cms/server";
-import { createR2UploadProvider } from "svelte-webflow-cms/providers/r2";
 import { config } from "./config";
 
 export async function load({ platform }) {
@@ -100,14 +100,6 @@ export async function load({ platform }) {
 
 export const actions = createCmsActions(config, {
   getToken: (_, platform) => platform?.env?.WEBFLOW_TOKEN ?? null,
-  getUploadProvider: (_, platform) =>
-    platform?.env?.TEMP_IMAGES
-      ? createR2UploadProvider(
-          platform.env.TEMP_IMAGES,
-          "https://cdn.example.com"
-        )
-      : null,
-  bucketPrefix: "members",
 });
 ```
 
@@ -248,58 +240,30 @@ All components accept a `class` prop for custom styling:
 </CmsTable.Root>
 ```
 
-## Upload Providers
+## Image Uploads
 
-The library supports pluggable storage backends. Implement the `UploadProvider` interface for your storage:
+Images are uploaded directly to Webflow's asset storage using their Assets API. No intermediate storage (R2, S3, etc.) is required.
 
-```typescript
-interface UploadProvider {
-  upload(
-    file: Blob,
-    filename: string,
-    contentType: string
-  ): Promise<{ url: string; filename: string }>;
-  delete(filename: string): Promise<void>;
-}
-```
+### How it works
 
-### Built-in: Cloudflare R2
+1. Client-side: Images are compressed and cropped based on `imageSettings`
+2. Server-side: The image is hashed and uploaded directly to Webflow's S3
+3. The returned Webflow asset URL is used in the CMS item
+
+### Configuration
+
+Optionally specify an `assetFolderId` in your config to organize uploads:
 
 ```typescript
-import { createR2UploadProvider } from "svelte-webflow-cms/providers/r2";
-
-getUploadProvider: (_, platform) =>
-  createR2UploadProvider(platform.env.BUCKET, "https://cdn.example.com");
+const config: TableConfig = {
+  siteId: "your-site-id",
+  collectionId: "your-collection-id",
+  assetFolderId: "your-folder-id", // Optional
+  // ...
+};
 ```
 
-### Custom Provider Example (S3)
-
-```typescript
-export function createS3UploadProvider(
-  client,
-  bucket,
-  baseUrl
-): UploadProvider {
-  return {
-    async upload(file, filename, contentType) {
-      await client.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: filename,
-          Body: Buffer.from(await file.arrayBuffer()),
-          ContentType: contentType,
-        })
-      );
-      return { url: `${baseUrl}/${filename}`, filename };
-    },
-    async delete(filename) {
-      await client.send(
-        new DeleteObjectCommand({ Bucket: bucket, Key: filename })
-      );
-    },
-  };
-}
-```
+To find your folder ID, use the Webflow API or check the URL when viewing a folder in the Webflow dashboard.
 
 ## Token Configuration
 
@@ -417,8 +381,6 @@ interface SortFieldSchema extends FieldSchema {
 
 - `TableConfig` - Table configuration
 - `Field` - Field configuration
-- `UploadProvider` - Upload provider interface
-- `UploadProviderFactory` - Factory for creating providers
 - `TokenGetter` - Token retrieval function type
 
 ## License

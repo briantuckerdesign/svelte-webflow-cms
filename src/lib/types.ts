@@ -13,6 +13,8 @@ export interface TableConfig {
   siteId: string;
   /** Webflow ID of the collection */
   collectionId: string;
+  /** Webflow asset folder ID for image uploads (optional) */
+  assetFolderId?: string;
   /** Can users create/delete items? */
   createDeleteEnabled: boolean;
   /** Can users toggle drafts? */
@@ -79,6 +81,14 @@ export type FieldStyleDefaults = {
 };
 
 /**
+ * Token getter function type - allows flexible token retrieval
+ */
+export type TokenGetter = (
+  request: Request,
+  platform?: any
+) => string | null | Promise<string | null>;
+
+/**
  * Result from an upload operation
  */
 export interface UploadResult {
@@ -110,20 +120,3 @@ export interface UploadProvider {
    */
   delete(filename: string): Promise<void>;
 }
-
-/**
- * Factory function to create an upload provider at request time.
- * This is needed because platform/env is only available during request handling.
- */
-export type UploadProviderFactory = (
-  request: Request,
-  platform?: any
-) => UploadProvider | null;
-
-/**
- * Token getter function type - allows flexible token retrieval
- */
-export type TokenGetter = (
-  request: Request,
-  platform?: any
-) => string | null | Promise<string | null>;
