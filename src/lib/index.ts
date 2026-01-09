@@ -19,6 +19,7 @@ export { default as ColorInput } from "./components/CmsTable/inputs/ColorInput.s
 export { default as SwitchInput } from "./components/CmsTable/inputs/SwitchInput.svelte";
 export { default as OptionInput } from "./components/CmsTable/inputs/OptionInput.svelte";
 export { default as ImageInput } from "./components/CmsTable/inputs/ImageInput.svelte";
+export { default as FileInput } from "./components/CmsTable/inputs/FileInput.svelte";
 export { default as ReferenceInput } from "./components/CmsTable/inputs/ReferenceInput.svelte";
 export { default as MultiReferenceInput } from "./components/CmsTable/inputs/MultiReferenceInput.svelte";
 
@@ -32,11 +33,15 @@ export type {
   SortField,
   SortFieldSchema,
   ImageSettings,
+  FileSettings,
   UploadProvider,
   UploadProviderFactory,
   UploadResult,
   TokenGetter,
 } from "./types.js";
+
+// Constants
+export { ALLOWED_FILE_TYPES, ALLOWED_FILE_EXTENSIONS } from "./types.js";
 
 // Utilities
 export { fieldStyleDefaults } from "./components/CmsTable/field-style-defaults.js";

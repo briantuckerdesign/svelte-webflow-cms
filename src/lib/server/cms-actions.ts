@@ -1,11 +1,8 @@
 import { fail } from "@sveltejs/kit";
-import type {
-  TableConfig,
-  UploadProvider,
-  UploadProviderFactory,
-  TokenGetter,
-} from "../types.js";
+import type { TableConfig, TokenGetter } from "../types.js";
+import { ALLOWED_FILE_TYPES, ALLOWED_FILE_EXTENSIONS } from "../types.js";
 import { createWebflowClient } from "./webflow.js";
+import { createWebflowUploadProvider } from "./webflow-upload-provider.js";
 
 interface UpdatePayload {
   item: any;
@@ -209,18 +206,23 @@ export function createSaveAllAction(
 }
 
 /**
- * Creates uploadPhoto action for image uploads
- * @param getProvider - Factory function to create upload provider at request time
- * @param bucketPrefix - Prefix for uploaded filenames
+ * Creates uploadPhoto action for image uploads directly to Webflow
+ * @param config - Table configuration (provides siteId and assetFolderId)
+ * @param getToken - Function to retrieve the Webflow API token
  */
 export function createUploadPhotoAction(
-  getProvider: UploadProviderFactory,
-  bucketPrefix: string = "cms-item"
+  config: TableConfig,
+  getToken: TokenGetter
 ) {
   return async ({ request, platform }: { request: Request; platform: any }) => {
-    const provider = getProvider(request, platform);
-    if (!provider)
-      return fail(500, { error: "Upload provider not configured" });
+    const token = await getToken(request, platform);
+    if (!token) return fail(500, { error: "WEBFLOW_TOKEN not configured" });
+
+    const provider = createWebflowUploadProvider({
+      token,
+      siteId: config.siteId,
+      folderId: config.assetFolderId,
+    });
 
     const formData = await request.formData();
     const imageBlob = formData.get("photo") as Blob;
@@ -230,9 +232,9 @@ export function createUploadPhotoAction(
 
     try {
       // Generate unique filename
-      const filename = `${bucketPrefix}-${Date.now()}-${Math.random().toString(36).substring(7)}.webp`;
+      const filename = `${config.itemSingular.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}-${Math.random().toString(36).substring(7)}.webp`;
 
-      // Upload using the provided storage backend
+      // Upload directly to Webflow
       const result = await provider.upload(imageBlob, filename, "image/webp");
 
       return {
@@ -252,26 +254,102 @@ export function createUploadPhotoAction(
 }
 
 /**
- * Creates deletePhoto action for cleaning up temp images
- * @param getProvider - Factory function to create upload provider at request time
+ * Creates deletePhoto action
+ * Note: Webflow assets cannot be deleted via this provider - they must be managed through Webflow
  */
-export function createDeletePhotoAction(getProvider: UploadProviderFactory) {
-  return async ({ request, platform }: { request: Request; platform: any }) => {
-    const provider = getProvider(request, platform);
-    if (!provider)
-      return fail(500, { error: "Upload provider not configured" });
-
+export function createDeletePhotoAction() {
+  return async ({ request }: { request: Request }) => {
     const formData = await request.formData();
     const filename = formData.get("filename") as string;
 
     if (!filename) return fail(400, { error: "No filename provided" });
 
+    // Webflow assets are permanent and managed through Webflow dashboard
+    // This action is kept for API compatibility but is a no-op
+    return { success: true };
+  };
+}
+
+/**
+ * Creates uploadFile action for file uploads directly to Webflow
+ * Validates file type and size before uploading
+ * @param config - Table configuration (provides siteId and assetFolderId)
+ * @param getToken - Function to retrieve the Webflow API token
+ * @param maxSizeBytes - Maximum file size in bytes (default: 10MB)
+ */
+export function createUploadFileAction(
+  config: TableConfig,
+  getToken: TokenGetter,
+  maxSizeBytes: number = 10 * 1024 * 1024
+) {
+  return async ({ request, platform }: { request: Request; platform: any }) => {
+    const token = await getToken(request, platform);
+    if (!token) return fail(500, { error: "WEBFLOW_TOKEN not configured" });
+
+    const provider = createWebflowUploadProvider({
+      token,
+      siteId: config.siteId,
+      folderId: config.assetFolderId,
+    });
+
+    const formData = await request.formData();
+    const fileBlob = formData.get("file") as Blob;
+    const itemName = formData.get("itemName") as string;
+    const originalFilename = formData.get("originalFilename") as string;
+
+    if (!fileBlob) return fail(400, { error: "No file provided" });
+
+    // Validate file size
+    if (fileBlob.size > maxSizeBytes) {
+      const maxSizeMB = (maxSizeBytes / (1024 * 1024)).toFixed(1);
+      return fail(400, {
+        error: `File is too large. Maximum size: ${maxSizeMB}MB`,
+      });
+    }
+
+    // Validate file type
+    const fileType = fileBlob.type;
+    const fileExtension = originalFilename
+      ? `.${originalFilename.split(".").pop()?.toLowerCase()}`
+      : "";
+
+    const isValidMime = ALLOWED_FILE_TYPES.includes(
+      fileType as (typeof ALLOWED_FILE_TYPES)[number]
+    );
+    const isValidExtension = ALLOWED_FILE_EXTENSIONS.includes(
+      fileExtension as (typeof ALLOWED_FILE_EXTENSIONS)[number]
+    );
+
+    if (!isValidMime && !isValidExtension) {
+      return fail(400, {
+        error: `File type not allowed. Allowed types: ${ALLOWED_FILE_EXTENSIONS.join(", ")}`,
+      });
+    }
+
     try {
-      await provider.delete(filename);
-      return { success: true };
+      // Preserve original extension
+      const extension =
+        originalFilename?.split(".").pop()?.toLowerCase() || "bin";
+      const filename = `${config.itemSingular.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`;
+
+      // Upload directly to Webflow
+      const result = await provider.upload(
+        fileBlob,
+        filename,
+        fileType || "application/octet-stream"
+      );
+
+      return {
+        success: true,
+        file: {
+          url: result.url,
+          alt: originalFilename || itemName || "File",
+          filename: result.filename,
+        },
+      };
     } catch (err) {
       return fail(500, {
-        error: `Failed to delete image: ${err instanceof Error ? err.message : "Unknown error"}`,
+        error: `Failed to upload file: ${err instanceof Error ? err.message : "Unknown error"}`,
       });
     }
   };
@@ -280,10 +358,8 @@ export function createDeletePhotoAction(getProvider: UploadProviderFactory) {
 interface CmsActionsOptions {
   /** Function to retrieve the Webflow API token */
   getToken: TokenGetter;
-  /** Factory to create upload provider at request time. If not provided, upload actions return errors. */
-  getUploadProvider?: UploadProviderFactory;
-  /** Prefix for uploaded filenames */
-  bucketPrefix?: string;
+  /** Maximum file size in bytes for file uploads (default: 10MB) */
+  maxFileSizeBytes?: number;
 }
 
 /**
@@ -291,15 +367,8 @@ interface CmsActionsOptions {
  * Returns an object that can be spread into the actions export
  *
  * @example
- * // With Cloudflare R2 upload provider
- * import { createR2UploadProvider } from 'svelte-webflow-cms/providers/r2';
- *
  * export const actions = createCmsActions(config, {
- *   getToken: (_, platform) => platform?.env?.WEBFLOW_TOKEN,
- *   getUploadProvider: (_, platform) => platform?.env?.TEMP_IMAGES
- *     ? createR2UploadProvider(platform.env.TEMP_IMAGES, 'https://cdn.example.com')
- *     : null,
- *   bucketPrefix: 'my-prefix'
+ *   getToken: (_, platform) => platform?.env?.WEBFLOW_TOKEN
  * });
  *
  * @example
@@ -312,15 +381,12 @@ export function createCmsActions(
   config: TableConfig,
   options: CmsActionsOptions
 ) {
-  const { getToken, getUploadProvider, bucketPrefix = "cms-item" } = options;
-
-  // Default factory returns null (no upload support)
-  const providerFactory: UploadProviderFactory =
-    getUploadProvider ?? (() => null);
+  const { getToken, maxFileSizeBytes } = options;
 
   return {
     saveAll: createSaveAllAction(config, getToken),
-    uploadPhoto: createUploadPhotoAction(providerFactory, bucketPrefix),
-    deletePhoto: createDeletePhotoAction(providerFactory),
+    uploadPhoto: createUploadPhotoAction(config, getToken),
+    uploadFile: createUploadFileAction(config, getToken, maxFileSizeBytes),
+    deletePhoto: createDeletePhotoAction(),
   };
 }

@@ -8,7 +8,7 @@ A config-driven CMS table editor for managing Webflow collections with SvelteKit
 - **Change Tracking**: Tracks all modifications and only enables save when changes exist
 - **Batched Operations**: Nothing is sent to Webflow until explicit "Save changes" click
 - **Drag & Drop Sorting**: Reorder items with automatic sort field updates
-- **Image Handling**: Client-side compression/cropping with pluggable storage backends
+- **Direct Webflow Upload**: Images and files upload directly to Webflow assets (no intermediate storage needed)
 - **Hosting Agnostic**: Works with any hosting platform (Cloudflare, Vercel, Netlify, etc.)
 - **Field Validation**: Required fields, length constraints, and numeric ranges with error feedback
 
@@ -54,6 +54,7 @@ export const config: TableConfig = {
   itemPlural: "Members",
   siteId: "your-site-id",
   collectionId: "your-collection-id",
+  assetFolderId: "optional-folder-id", // Optional: organize uploads in a Webflow folder
   createDeleteEnabled: true,
   draftEnabled: true,
   fields: [
@@ -78,6 +79,16 @@ export const config: TableConfig = {
         imageSettings: { width: 400, height: 400 },
       },
     },
+    {
+      visible: true,
+      editable: true,
+      schema: {
+        name: "Resume",
+        slug: "resume",
+        type: "File",
+        fileSettings: { maxSizeBytes: 10 * 1024 * 1024 }, // 10MB max
+      },
+    },
   ],
 };
 ```
@@ -87,7 +98,6 @@ export const config: TableConfig = {
 ```typescript
 // src/routes/members/+page.server.ts
 import { createCmsActions, loadCmsItems } from "svelte-webflow-cms/server";
-import { createR2UploadProvider } from "svelte-webflow-cms/providers/r2";
 import { config } from "./config";
 
 export async function load({ platform }) {
@@ -100,14 +110,6 @@ export async function load({ platform }) {
 
 export const actions = createCmsActions(config, {
   getToken: (_, platform) => platform?.env?.WEBFLOW_TOKEN ?? null,
-  getUploadProvider: (_, platform) =>
-    platform?.env?.TEMP_IMAGES
-      ? createR2UploadProvider(
-          platform.env.TEMP_IMAGES,
-          "https://cdn.example.com"
-        )
-      : null,
-  bucketPrefix: "members",
 });
 ```
 
@@ -248,58 +250,73 @@ All components accept a `class` prop for custom styling:
 </CmsTable.Root>
 ```
 
-## Upload Providers
+## Image & File Uploads
 
-The library supports pluggable storage backends. Implement the `UploadProvider` interface for your storage:
+Images and files are uploaded directly to Webflow's asset storage using their Assets API. No intermediate storage (R2, S3, etc.) is required.
+
+### How it works
+
+1. **Images**: Client-side compression and cropping based on `imageSettings`, then uploaded to Webflow
+2. **Files**: Validated for type and size, then uploaded to Webflow on save
+3. The returned Webflow asset URL is used in the CMS item
+
+### Image Configuration
 
 ```typescript
-interface UploadProvider {
-  upload(
-    file: Blob,
-    filename: string,
-    contentType: string
-  ): Promise<{ url: string; filename: string }>;
-  delete(filename: string): Promise<void>;
+{
+  schema: {
+    name: "Photo",
+    slug: "photo",
+    type: "Image",
+    imageSettings: {
+      width: 400,   // Target width in pixels
+      height: 400,  // Target height in pixels
+    },
+  },
 }
 ```
 
-### Built-in: Cloudflare R2
+### File Configuration
 
 ```typescript
-import { createR2UploadProvider } from "svelte-webflow-cms/providers/r2";
-
-getUploadProvider: (_, platform) =>
-  createR2UploadProvider(platform.env.BUCKET, "https://cdn.example.com");
-```
-
-### Custom Provider Example (S3)
-
-```typescript
-export function createS3UploadProvider(
-  client,
-  bucket,
-  baseUrl
-): UploadProvider {
-  return {
-    async upload(file, filename, contentType) {
-      await client.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: filename,
-          Body: Buffer.from(await file.arrayBuffer()),
-          ContentType: contentType,
-        })
-      );
-      return { url: `${baseUrl}/${filename}`, filename };
+{
+  schema: {
+    name: "Document",
+    slug: "document",
+    type: "File",
+    fileSettings: {
+      maxSizeBytes: 10 * 1024 * 1024,  // 10MB max file size
     },
-    async delete(filename) {
-      await client.send(
-        new DeleteObjectCommand({ Bucket: bucket, Key: filename })
-      );
-    },
-  };
+  },
 }
 ```
+
+### Allowed File Types
+
+The following file types are supported for file uploads:
+
+| Category      | Extensions                         |
+| ------------- | ---------------------------------- |
+| Images        | PNG, JPEG/JPG, GIF, BMP, SVG, WebP |
+| Documents     | PDF, DOC/DOCX, TXT                 |
+| Spreadsheets  | XLS/XLSX, CSV, ODS                 |
+| Presentations | PPT/PPTX, ODP                      |
+| Other         | ODT                                |
+
+### Configuration
+
+Optionally specify an `assetFolderId` in your config to organize uploads:
+
+```typescript
+const config: TableConfig = {
+  siteId: "your-site-id",
+  collectionId: "your-collection-id",
+  assetFolderId: "your-folder-id", // Optional
+  // ...
+};
+```
+
+To find your folder ID, use the Webflow API or check the URL when viewing a folder in the Webflow dashboard.
 
 ## Token Configuration
 
@@ -332,6 +349,7 @@ getToken: () => env.WEBFLOW_TOKEN ?? null;
 | `Color`          | ColorInput          | Color picker                            |
 | `DateTime`       | DateInput           | Calendar picker with date selection     |
 | `Image`          | ImageInput          | Image upload with processing            |
+| `File`           | FileInput           | File upload with type/size validation   |
 | `Reference`      | ReferenceInput      | Single collection reference             |
 | `MultiReference` | MultiReferenceInput | Multiple collection refs                |
 
@@ -403,6 +421,7 @@ interface SortFieldSchema extends FieldSchema {
 - `OptionInput` - Dropdown select
 - `DateInput` - Calendar date picker
 - `ImageInput` - Image upload with compression
+- `FileInput` - File upload with type/size validation
 - `ReferenceInput` - Single collection reference selector
 - `MultiReferenceInput` - Multiple collection reference selector
 
@@ -417,8 +436,8 @@ interface SortFieldSchema extends FieldSchema {
 
 - `TableConfig` - Table configuration
 - `Field` - Field configuration
-- `UploadProvider` - Upload provider interface
-- `UploadProviderFactory` - Factory for creating providers
+- `ImageSettings` - Image upload settings (width, height)
+- `FileSettings` - File upload settings (maxSizeBytes)
 - `TokenGetter` - Token retrieval function type
 
 ## License
