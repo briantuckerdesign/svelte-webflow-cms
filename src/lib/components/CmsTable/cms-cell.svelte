@@ -201,6 +201,7 @@
     {@const dateStr = displayValue
       ? new Date(displayValue).toLocaleDateString("en-US", {
           dateStyle: "medium",
+          timeZone: "UTC",
         })
       : "-"}
     <span class="text-sm">{dateStr}</span>
